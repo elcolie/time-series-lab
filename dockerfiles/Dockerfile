@@ -1,0 +1,3 @@
+FROM quay.io/jupyter/pytorch-notebook
+
+RUN pip install jupytext
