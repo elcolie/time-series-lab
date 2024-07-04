@@ -1,0 +1,12 @@
+numpy
+pandas
+scikit-learn
+jupyterlab
+jupytext
+jupyter_server
+ipdb
+tqdm
+imblearn
+skorch
+torch
+torchvision

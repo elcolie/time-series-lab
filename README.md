@@ -9,6 +9,9 @@ For some reason, the image can not be built from docker compose command. Need to
 1. `docker compose run --service-ports jupyter-pytorch /bin/bash`. Start container with `--service-ports` to enable port forwarding.
 1. `jupyter notebook --ip 0.0.0.0 --no-browser --allow-root`
 
+# MPS does not work on docker
+https://github.com/pytorch/pytorch/issues/81224
+
 # Plan for the project
 1. Choose the close-price VS time series data. `Open, High, Low` are not used.
 2. Digitize the close-price data into 5 classes.
