@@ -9,6 +9,9 @@ For some reason, the image can not be built from docker compose command. Need to
 1. `docker compose run --service-ports jupyter-pytorch /bin/bash`. Start container with `--service-ports` to enable port forwarding.
 1. `jupyter notebook --ip 0.0.0.0 --no-browser --allow-root`
 
+# Tensorboard
+1. `tensorboard --logdir=tb_logs --bind_all`
+
 # MPS does not work on docker
 https://github.com/pytorch/pytorch/issues/81224
 
