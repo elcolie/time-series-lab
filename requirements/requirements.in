@@ -15,3 +15,4 @@ pytorch-lightning
 tensorboard
 protobuf==4.25  # via tensorboard
 seaborn
+imbalanced-learn

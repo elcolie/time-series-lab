@@ -112,7 +112,9 @@ idna==3.7
     #   requests
     #   yarl
 imbalanced-learn==0.12.3
-    # via imblearn
+    # via
+    #   -r requirements.in
+    #   imblearn
 imblearn==0.0
     # via -r requirements.in
 importlib-metadata==8.2.0

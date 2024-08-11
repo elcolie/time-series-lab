@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
+from imblearn.over_sampling import RandomOverSampler
+from collections import Counter
 
 from utils import get_sliding_dataframe
 
@@ -34,6 +36,7 @@ class LSTMModel(pl.LightningModule):
         self.test_outputs = []  # Initialize the list here
 
     def forward(self, x) -> torch.Tensor:
+        # print(f"Input type: {type(x)}, shape: {x.shape if isinstance(x, torch.Tensor) else None}")
         lstm_out, _ = self.lstm(x)
         return self.fc(lstm_out[:, -1, :])
 
@@ -52,52 +55,34 @@ class LSTMModel(pl.LightningModule):
 
     def test_step(self, batch: torch.Tensor, batch_idx: int) -> dict:
         x, y = batch
-        y_hat = self(x)
+        y_hat = self.forward(x)
         self.test_outputs.append({'y_true': y, 'y_pred': y_hat})
+        return {'y_true': y, 'y_pred': y_hat}
 
     def on_test_epoch_start(self) -> None:
         self.test_outputs = []  # Reset the list at the start of each test epoch
-
-    def on_test_epoch_end(self):
-        y_true = torch.cat([x['y_true'] for x in self.test_outputs]).cpu()
-        y_pred = torch.cat([x['y_pred'] for x in self.test_outputs]).cpu()
-
-        # Convert predictions to class labels
-        y_pred_labels = torch.argmax(y_pred, dim=1).numpy()
-        y_true_labels = y_true.numpy()
-
-        # Calculate confusion matrix
-        cm = confusion_matrix(y_true_labels, y_pred_labels)
-
-        # Plot confusion matrix
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title('Confusion Matrix')
-        plt.ylabel('True label')
-        plt.xlabel('Predicted label')
-        plt.savefig('confusion_matrix.png')
-        plt.close()
-
-        print("Confusion matrix saved as 'confusion_matrix.png'")
-
-        self.test_outputs.clear()
 
     def configure_optimizers(self) -> optim.Optimizer:
         return optim.Adam(self.parameters())
 
 
-df = get_sliding_dataframe()
+df = get_sliding_dataframe("/Users/sarit/mein-codes/time-series-lab/time_series_data/SET_DLY_BBL, 5_d2141.csv")
 num_classes = df['label'].nunique()
 
 # Prepare your data
 # Assuming df is your DataFrame and 'target' is your target column
-X = df.drop('label', axis=1).values
+X_raw = df.drop('label', axis=1).values
 le = LabelEncoder()
-y = le.fit_transform(df['label'])
+y_raw = le.fit_transform(df['label'])
+
+ros = RandomOverSampler(random_state=0)
+X, y = ros.fit_resample(X_raw, y_raw)
 
 # Normalize the features
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
+result = Counter(y)
+print(result)
 
 # Split the data
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -125,7 +110,7 @@ model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
 logger = TensorBoardLogger("tb_logs", name="my_lstm")
 
 # Train the model
-trainer = pl.Trainer(max_epochs=100, accelerator='auto', devices=1, logger=logger)
+trainer = pl.Trainer(max_epochs=10, accelerator='auto', devices=1, logger=logger)
 trainer.fit(model, train_loader, val_loader)
 
 # Create a test set (you can use the validation set if you don't have a separate test set)
@@ -133,8 +118,7 @@ test_dataset = TensorDataset(X_val, y_val)
 test_loader = DataLoader(test_dataset, batch_size=32)
 
 # Make predictions
-trainer.test(model, test_loader)
-predictions = trainer.predict(model, test_loader)
+trainer.test(model, dataloaders=test_loader)
 
 # Concatenate all predictions
 y_true = torch.cat([x['y_true'] for x in model.test_outputs]).cpu().numpy()
