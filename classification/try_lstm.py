@@ -110,7 +110,8 @@ model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
 logger = TensorBoardLogger("tb_logs", name="my_lstm")
 
 # Train the model
-trainer = pl.Trainer(max_epochs=10, accelerator='auto', devices=1, logger=logger)
+max_epochs: int = 100
+trainer = pl.Trainer(max_epochs=max_epochs, accelerator='auto', devices=1, logger=logger)
 trainer.fit(model, train_loader, val_loader)
 
 # Create a test set (you can use the validation set if you don't have a separate test set)
@@ -139,4 +140,4 @@ plt.xlabel('Predicted label')
 plt.savefig('confusion_matrix.png')
 plt.close()
 
-print("Confusion matrix saved as 'confusion_matrix.png'")
+print(f"Confusion matrix saved as 'confusion_matrix_{max_epochs}.png'")
