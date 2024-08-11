@@ -11,6 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 from imblearn.over_sampling import RandomOverSampler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, matthews_corrcoef
 from collections import Counter
 
 from utils import get_sliding_dataframe
@@ -25,7 +26,7 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
     print("No GPU found. Using CPU.")
-
+device = torch.device("cpu")    # Small data, so using CPU
 
 class LSTMModel(pl.LightningModule):
     def __init__(self, input_size: int, hidden_size: int, num_layers: int, num_classes: int):
@@ -66,7 +67,21 @@ class LSTMModel(pl.LightningModule):
         return optim.Adam(self.parameters())
 
 
-df = get_sliding_dataframe("/Users/sarit/mein-codes/time-series-lab/time_series_data/SET_DLY_BBL, 5_d2141.csv")
+window_size: int = 32
+batch_size: int = 32
+max_epochs: int = 100
+df = get_sliding_dataframe(
+    "/Users/sarit/mein-codes/time-series-lab/time_series_data/SET_DLY_BBL, 5_d2141.csv",
+    window_size=window_size
+)
+print(f"DataFrame shape after sliding window: {df.shape}")
+print(f"Number of samples for each label:\n{df['label'].value_counts()}")
+min_samples_per_class = 2  # or whatever minimum you deem appropriate
+label_counts = df['label'].value_counts()
+if (label_counts < min_samples_per_class).any():
+    print(f"Warning: Some classes have fewer than {min_samples_per_class} samples.")
+    print(label_counts[label_counts < min_samples_per_class])
+
 num_classes = df['label'].nunique()
 
 # Prepare your data
@@ -75,7 +90,7 @@ X_raw = df.drop('label', axis=1).values
 le = LabelEncoder()
 y_raw = le.fit_transform(df['label'])
 
-ros = RandomOverSampler(random_state=0)
+ros = RandomOverSampler(random_state=0, sampling_strategy='not majority')
 X, y = ros.fit_resample(X_raw, y_raw)
 
 # Normalize the features
@@ -96,8 +111,14 @@ y_val = torch.FloatTensor(y_val).to(device)
 # Create DataLoaders
 train_dataset = TensorDataset(X_train, y_train)
 val_dataset = TensorDataset(X_val, y_val)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size)
+
+# Check for empty batches
+for loader in [train_loader, val_loader]:
+    for batch in loader:
+        if len(batch[0]) == 0 or len(batch[1]) == 0:
+            print(f"Warning: Empty batch found in {'train' if loader == train_loader else 'validation'} loader")
 
 # Initialize the model
 input_size = X_train.shape[2]  # Number of features
@@ -110,13 +131,12 @@ model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
 logger = TensorBoardLogger("tb_logs", name="my_lstm")
 
 # Train the model
-max_epochs: int = 100
 trainer = pl.Trainer(max_epochs=max_epochs, accelerator='auto', devices=1, logger=logger)
 trainer.fit(model, train_loader, val_loader)
 
 # Create a test set (you can use the validation set if you don't have a separate test set)
 test_dataset = TensorDataset(X_val, y_val)
-test_loader = DataLoader(test_dataset, batch_size=32)
+test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
 # Make predictions
 trainer.test(model, dataloaders=test_loader)
@@ -137,7 +157,26 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
 plt.title('Confusion Matrix')
 plt.ylabel('True label')
 plt.xlabel('Predicted label')
-plt.savefig('confusion_matrix.png')
+plt.savefig(f'./classification/confusion_matrix_{window_size}_{max_epochs}.png')
 plt.close()
 
-print(f"Confusion matrix saved as 'confusion_matrix_{max_epochs}.png'")
+# After calculating y_true and y_pred_labels
+accuracy = accuracy_score(y_true, y_pred_labels)
+precision = precision_score(y_true, y_pred_labels, average='weighted')
+recall = recall_score(y_true, y_pred_labels, average='weighted')
+f1 = f1_score(y_true, y_pred_labels, average='weighted')
+mcc = matthews_corrcoef(y_true, y_pred_labels)
+
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1 Score: {f1:.4f}")
+print(f"Matthews Correlation Coefficient: {mcc:.4f}")
+with open(f"./classification/metrics_{window_size}_{max_epochs}.txt", "w") as f:
+    f.write(f"Accuracy: {accuracy:.4f}\n")
+    f.write(f"Precision: {precision:.4f}\n")
+    f.write(f"Recall: {recall:.4f}\n")
+    f.write(f"F1 Score: {f1:.4f}\n")
+    f.write(f"Matthews Correlation Coefficient: {mcc:.4f}\n")
+
+print(f"Confusion matrix saved as 'confusion_matrix_{window_size}_{max_epochs}.png'")

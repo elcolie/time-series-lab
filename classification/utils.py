@@ -19,11 +19,14 @@ def sliding_window(data, window_size=5):
     return [data[i:i+window_size] for i in range(len(data) - window_size + 1)]
 
 
-def get_sliding_dataframe(filename: str = '../time_series_data/SET_DLY_BBL, 5_d2141.csv') -> pd.DataFrame:
+def get_sliding_dataframe(
+    filename: str = '../time_series_data/SET_DLY_BBL, 5_d2141.csv',
+    window_size: int = 5
+) -> pd.DataFrame:
     df = pd.read_csv(filename)
     rate_of_change = np.diff(df.close)
-    X = sliding_window(df.close, window_size=5)  # Omit first element because it is derivative.
-    Y = sliding_window(rate_of_change, window_size=5)
+    X = sliding_window(df.close, window_size=window_size)  # Omit first element because it is derivative.
+    Y = sliding_window(rate_of_change, window_size=window_size)
     ## Make dataset for classification
 
     result_data = []
