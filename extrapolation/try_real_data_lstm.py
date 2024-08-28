@@ -224,6 +224,10 @@ def run_experiment(_config: Configuration):
 
 
 if __name__ == "__main__":
+    """
+    Run the experiments. I need this if __name__ otherwise it will raises error regarding the Pool.
+    Ref: https://stackoverflow.com/questions/65859890/python-multiprocessing-with-m1-mac
+    """
     from multiprocessing import Pool
     import os
 
