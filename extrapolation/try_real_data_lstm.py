@@ -1,21 +1,26 @@
 # +
+import typing as typ
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
+from tqdm import tqdm
 
 # Set random seed for reproducibility
 torch.manual_seed(0)
 
 # Check if MPS is available
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-    print("Using MPS")
-else:
-    device = torch.device("cpu")
-    print("MPS not available, using CPU")
+# if torch.backends.mps.is_available():
+#     device = torch.device("mps")
+#     print("Using MPS")
+# else:
+#     device = torch.device("cpu")
+#     print("MPS not available, using CPU")
 
+device = torch.device("cpu")
+print("Device:", device)
 # -
 
 # Generate sine wave data
@@ -42,7 +47,7 @@ def generate_price_sequence(bbl_df: pd.DataFrame, seq_length: int) -> np.ndarray
     num_sequences = len(prices) - seq_length + 1
 
     # Create the sequences
-    sequences = np.array([prices[i:i+seq_length] for i in range(num_sequences)])
+    sequences = np.array([prices[i:i + seq_length] for i in range(num_sequences)])
 
     return sequences
 
@@ -56,7 +61,6 @@ num_layers = 2
 output_size = 1
 num_epochs = 100
 learning_rate = 0.001
-
 
 # Generate data
 # data = generate_sine_wave(seq_length, num_samples)
@@ -87,51 +91,145 @@ class SineLSTM(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
+
+class Configuration:
+    model: object
+    criterion: object
+
+    def __init__(
+        self,
+        model: object,
+        criterion: object,
+        optimizer: typ.Callable,
+        **kwargs
+    ):
+        self.model = model
+        self.criterion = criterion
+        self.optimizer = optimizer(self.model.parameters(), **kwargs)
+
+
+my_configs = [
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.MSELoss(),
+        optimizer=torch.optim.SGD,
+        lr=learning_rate
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.L1Loss(),
+        optimizer=torch.optim.Adam,
+        lr=learning_rate
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.SmoothL1Loss(),
+        optimizer=torch.optim.Adam,
+        lr=learning_rate
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.MSELoss(),
+        optimizer=torch.optim.RMSprop,
+        lr=learning_rate
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.MSELoss(),
+        optimizer=torch.optim.Adagrad,
+        lr=learning_rate
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.MSELoss(),
+        optimizer=torch.optim.SGD,
+        lr=learning_rate,
+        momentum=0.9
+    ),
+    Configuration(
+        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+        criterion=nn.MSELoss(),
+        optimizer=torch.optim.NAdam,
+        lr=learning_rate
+    )
+]
+
+
 # Initialize model, loss function, and optimizer
-model = SineLSTM(input_size, hidden_size, num_layers, output_size).to(device)
+# model = SineLSTM(input_size, hidden_size, num_layers, output_size).to(device)
 
 # This pair is not work. NN does not learn after 2nd epoch.
 # criterion = nn.MSELoss()
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-criterion = nn.MSELoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+# criterion = nn.L1Loss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.SmoothL1Loss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.NAdam(model.parameters(), lr=learning_rate)
+
 
 # -
+def run_experiment(_config: Configuration):
+    model = _config.model
+    criterion = _config.criterion
+    optimizer = _config.optimizer
 
-# Training loop
-for epoch in range(num_epochs):
-    model.train()
-    for i in range(len(train_data)):
-        seq = train_data[i, :-1, :].unsqueeze(0)
-        target = train_data[i, -1, :].unsqueeze(0)
+    # Training loop
+    for epoch in range(num_epochs):
+        model.train()
+        for i in range(len(train_data)):
+            seq = train_data[i, :-1, :].unsqueeze(0)
+            target = train_data[i, -1, :].unsqueeze(0)
 
-        output = model.forward(seq)
-        loss = criterion(output, target)
+            output = model.forward(seq)
+            loss = criterion(output, target)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
+        if (epoch + 1) % 10 == 0:
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+
+    # Generate sine curve
+    model.eval()
+    with torch.no_grad():
+        test_seq = test_data[0, :-1, :].unsqueeze(0)  # Add batch dimension
+        true_vals = test_data[0, -seq_length:, 0].cpu().numpy()
+        predicted = []
+
+        for _ in range(seq_length):
+            out = model(test_seq)
+            predicted.append(out.cpu().item())
+            test_seq = torch.cat((test_seq[:, 1:, :], out.unsqueeze(1)), dim=1)
+
+            if _ % 5 == 0:
+                plt.plot(test_seq.squeeze().cpu())
+                plt.plot(predicted)
+                plt.savefig(f"extrapolation/predicted/try_real_data_lstm_{str(model)}_{str(criterion)}_{optimizer}_{_}.png")
 
 
-# Generate sine curve
-model.eval()
-with torch.no_grad():
-    test_seq = test_data[0, :-1, :].unsqueeze(0)  # Add batch dimension
-    true_vals = test_data[0, -seq_length:, 0].cpu().numpy()
-    predicted = []
+if __name__ == "__main__":
+    from multiprocessing import Pool
+    import os
 
-    for _ in range(seq_length):
-        out = model(test_seq)
-        predicted.append(out.cpu().item())
-        test_seq = torch.cat((test_seq[:, 1:, :], out.unsqueeze(1)), dim=1)
-
-
-plt.plot(test_seq.squeeze().cpu())
-
-plt.plot(predicted)
+    cpu_count = os.cpu_count()
+    with Pool(processes=cpu_count) as pool:
+        for _ in tqdm(pool.imap_unordered(run_experiment, my_configs), total=len(my_configs)):
+            pass
 
 
