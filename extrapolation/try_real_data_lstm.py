@@ -220,7 +220,7 @@ def run_experiment(_config: Configuration):
             if _ % 5 == 0:
                 plt.plot(test_seq.squeeze().cpu())
                 plt.plot(predicted)
-                plt.savefig(f"extrapolation/predicted/try_real_data_lstm_{str(model)}_{str(criterion)}_{optimizer}_{_}.png")
+                plt.savefig(f"predicted/try_real_data_lstm_{str(criterion)}_{optimizer}_{_}.png")
 
 
 if __name__ == "__main__":
