@@ -1,4 +1,30 @@
 # +
+# Initialize model, loss function, and optimizer
+# model = SineLSTM(input_size, hidden_size, num_layers, output_size).to(device)
+
+# This pair is not work. NN does not learn after 2nd epoch.
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+
+# criterion = nn.L1Loss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.SmoothL1Loss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+#
+# criterion = nn.MSELoss()
+# optimizer = torch.optim.NAdam(model.parameters(), lr=learning_rate)
+
 import typing as typ
 
 import matplotlib.pyplot as plt
@@ -23,16 +49,7 @@ device = torch.device("cpu")
 print("Device:", device)
 # -
 
-# Generate sine wave data
-def generate_sine_wave(seq_length: int, num_samples: int) -> np.ndarray:
-    x = np.linspace(0, 10 * np.pi, num_samples)
-    y = np.sin(x)
-    return y.reshape(-1, seq_length)
-
-
 bbl_df = pd.read_csv("../time_series_data/SET_DLY_BBL, 5_d2141.csv")
-
-bbl_df
 
 
 def generate_price_sequence(bbl_df: pd.DataFrame, seq_length: int) -> np.ndarray:
@@ -60,7 +77,7 @@ hidden_size = 10
 num_layers = 2
 output_size = 1
 num_epochs = 100
-learning_rate = 0.001
+learning_rate = 0.01
 
 # Generate data
 # data = generate_sine_wave(seq_length, num_samples)
@@ -93,16 +110,16 @@ class SineLSTM(nn.Module):
 
 
 class Configuration:
-    model: object
-    criterion: object
 
     def __init__(
         self,
+        id: str,
         model: object,
         criterion: object,
         optimizer: typ.Callable,
         **kwargs
     ):
+        self.id = id
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer(self.model.parameters(), **kwargs)
@@ -110,36 +127,42 @@ class Configuration:
 
 my_configs = [
     Configuration(
+        id="1",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.MSELoss(),
         optimizer=torch.optim.SGD,
         lr=learning_rate
     ),
     Configuration(
+        id="2",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.L1Loss(),
         optimizer=torch.optim.Adam,
         lr=learning_rate
     ),
     Configuration(
+        id="3",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.SmoothL1Loss(),
         optimizer=torch.optim.Adam,
         lr=learning_rate
     ),
     Configuration(
+        id="4",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.MSELoss(),
         optimizer=torch.optim.RMSprop,
         lr=learning_rate
     ),
     Configuration(
+        id="5",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.MSELoss(),
         optimizer=torch.optim.Adagrad,
         lr=learning_rate
     ),
     Configuration(
+        id="6",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.MSELoss(),
         optimizer=torch.optim.SGD,
@@ -147,6 +170,7 @@ my_configs = [
         momentum=0.9
     ),
     Configuration(
+        id="7",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
         criterion=nn.MSELoss(),
         optimizer=torch.optim.NAdam,
@@ -155,35 +179,9 @@ my_configs = [
 ]
 
 
-# Initialize model, loss function, and optimizer
-# model = SineLSTM(input_size, hidden_size, num_layers, output_size).to(device)
-
-# This pair is not work. NN does not learn after 2nd epoch.
-# criterion = nn.MSELoss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-
-# criterion = nn.L1Loss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-#
-# criterion = nn.SmoothL1Loss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-#
-# criterion = nn.MSELoss()
-# optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
-#
-# criterion = nn.MSELoss()
-# optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate)
-#
-# criterion = nn.MSELoss()
-# optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-#
-# criterion = nn.MSELoss()
-# optimizer = torch.optim.NAdam(model.parameters(), lr=learning_rate)
-
-
 # -
 def run_experiment(_config: Configuration):
+    _id = _config.id
     model = _config.model
     criterion = _config.criterion
     optimizer = _config.optimizer
@@ -208,19 +206,30 @@ def run_experiment(_config: Configuration):
     # Generate sine curve
     model.eval()
     with torch.no_grad():
-        test_seq = test_data[0, :-1, :].unsqueeze(0)  # Add batch dimension
-        true_vals = test_data[0, -seq_length:, 0].cpu().numpy()
+        chunk_test_data = test_data[0, :-1, :] 
+        test_seq = chunk_test_data.unsqueeze(0)  # Add batch dimension
+        y_bottom, y_top = min(chunk_test_data) - 0.15, max(chunk_test_data) + 0.15  # Use in .ylim()
+        # true_vals = test_data[0, -seq_length:, 0].cpu()
         predicted = []
 
         for _ in range(seq_length):
             out = model(test_seq)
             predicted.append(out.cpu().item())
-            test_seq = torch.cat((test_seq[:, 1:, :], out.unsqueeze(1)), dim=1)
-
-            if _ % 5 == 0:
-                plt.plot(test_seq.squeeze().cpu())
-                plt.plot(predicted)
-                plt.savefig(f"predicted/try_real_data_lstm_{str(criterion)}_{optimizer}_{_}.png")
+            test_seq = torch.cat(
+                (test_seq[:, 1:, :], out.unsqueeze(1)),
+                dim=1
+            )
+        plt.plot(chunk_test_data, label="Test", color="orange")
+        plt.plot(predicted, label="Predicted", color="blue", linestyle='--')
+        plt.ylim((y_bottom, y_top))
+        plt.xlabel("Time")
+        plt.ylabel("Price (USD)")
+        plt.title("Test VS predicted value from neural network")
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.tight_layout()
+        # plt.show()
+        plt.savefig(f"predicted/try_real_data_lstm_{_id}_{_}.png")
+        plt.clf()
 
 
 if __name__ == "__main__":
@@ -235,5 +244,7 @@ if __name__ == "__main__":
     with Pool(processes=cpu_count) as pool:
         for _ in tqdm(pool.imap_unordered(run_experiment, my_configs), total=len(my_configs)):
             pass
+    # run_experiment(my_configs[0])
+
 
 

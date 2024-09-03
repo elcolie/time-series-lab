@@ -68,14 +68,14 @@ for epoch in range(num_epochs):
     for i in range(len(train_data)):
         seq = train_data[i, :-1, :].unsqueeze(0)
         target = train_data[i, -1, :].unsqueeze(0)
-        
+
         output = model.forward(seq)
         loss = criterion(output, target)
-        
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    
+
     if (epoch + 1) % 10 == 0:
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
@@ -84,9 +84,9 @@ for epoch in range(num_epochs):
 model.eval()
 with torch.no_grad():
     test_seq = test_data[0, :-1, :].unsqueeze(0)  # Add batch dimension
-    true_vals = test_data[0, -seq_length:, 0].numpy()
+    # true_vals = test_data[0, -seq_length:, 0].numpy()
     predicted = []
-    
+
     for _ in range(seq_length):
         out = model(test_seq)
         predicted.append(out.item())
