@@ -73,10 +73,10 @@ def generate_price_sequence(bbl_df: pd.DataFrame, seq_length: int) -> np.ndarray
 seq_length = 20
 # num_samples = 1000
 input_size = 1
-hidden_size = 10
-num_layers = 2
+hidden_size = 50
+num_layers = 5
 output_size = 1
-num_epochs = 100
+num_epochs = 500
 learning_rate = 0.01
 
 # Generate data
@@ -206,7 +206,7 @@ def run_experiment(_config: Configuration):
     # Generate sine curve
     model.eval()
     with torch.no_grad():
-        chunk_test_data = test_data[0, :-1, :] 
+        chunk_test_data = test_data[0, :-1, :]
         test_seq = chunk_test_data.unsqueeze(0)  # Add batch dimension
         y_bottom, y_top = min(chunk_test_data) - 0.15, max(chunk_test_data) + 0.15  # Use in .ylim()
         # true_vals = test_data[0, -seq_length:, 0].cpu()
