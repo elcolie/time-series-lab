@@ -70,13 +70,13 @@ def generate_price_sequence(bbl_df: pd.DataFrame, seq_length: int) -> np.ndarray
 
 
 # Parameters
-seq_length = 20
+seq_length = 40
 # num_samples = 1000
 input_size = 1
-hidden_size = 50
-num_layers = 5
+hidden_size = 100
+num_layers = 10
 output_size = 1
-num_epochs = 500
+num_epochs = 1000
 learning_rate = 0.01
 
 # Generate data
@@ -220,7 +220,7 @@ def run_experiment(_config: Configuration):
                 dim=1
             )
         plt.plot(chunk_test_data, label="Test", color="orange")
-        plt.plot(predicted, label="Predicted", color="blue", linestyle='--')
+        plt.plot(chunk_test_data + predicted, label="Predicted", color="blue", linestyle='--')
         plt.ylim((y_bottom, y_top))
         plt.xlabel("Time")
         plt.ylabel("Price (USD)")
