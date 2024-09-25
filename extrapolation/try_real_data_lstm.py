@@ -70,10 +70,10 @@ def generate_price_sequence(bbl_df: pd.DataFrame, seq_length: int) -> np.ndarray
 
 
 # Parameters
-seq_length = 40
+seq_length = 20
 # num_samples = 1000
 input_size = 1
-hidden_size = 100
+hidden_size = 50
 num_layers = 10
 output_size = 1
 num_epochs = 1000
@@ -126,41 +126,42 @@ class Configuration:
 
 
 my_configs = [
-    Configuration(
-        id="1",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.MSELoss(),
-        optimizer=torch.optim.SGD,
-        lr=learning_rate
-    ),
-    Configuration(
-        id="2",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.L1Loss(),
-        optimizer=torch.optim.Adam,
-        lr=learning_rate
-    ),
-    Configuration(
-        id="3",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.SmoothL1Loss(),
-        optimizer=torch.optim.Adam,
-        lr=learning_rate
-    ),
-    Configuration(
-        id="4",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.MSELoss(),
-        optimizer=torch.optim.RMSprop,
-        lr=learning_rate
-    ),
-    Configuration(
-        id="5",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.MSELoss(),
-        optimizer=torch.optim.Adagrad,
-        lr=learning_rate
-    ),
+    # Configuration(
+    #     id="1",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.MSELoss(),
+    #     optimizer=torch.optim.SGD,
+    #     lr=learning_rate
+    # ),
+    # Configuration(
+    #     id="2",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.L1Loss(),
+    #     optimizer=torch.optim.Adam,
+    #     lr=learning_rate
+    # ),
+    # Configuration(
+    #     id="3",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.SmoothL1Loss(),
+    #     optimizer=torch.optim.Adam,
+    #     lr=learning_rate
+    # ),
+    # Configuration(
+    #     id="4",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.MSELoss(),
+    #     optimizer=torch.optim.RMSprop,
+    #     lr=learning_rate
+    # ),
+    # Configuration(
+    #     id="5",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.MSELoss(),
+    #     optimizer=torch.optim.Adagrad,
+    #     lr=learning_rate
+    # ),
+    # This config works.
     Configuration(
         id="6",
         model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
@@ -169,13 +170,13 @@ my_configs = [
         lr=learning_rate,
         momentum=0.9
     ),
-    Configuration(
-        id="7",
-        model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
-        criterion=nn.MSELoss(),
-        optimizer=torch.optim.NAdam,
-        lr=learning_rate
-    )
+    # Configuration(
+    #     id="7",
+    #     model=SineLSTM(input_size, hidden_size, num_layers, output_size).to(device),
+    #     criterion=nn.MSELoss(),
+    #     optimizer=torch.optim.NAdam,
+    #     lr=learning_rate
+    # )
 ]
 
 
@@ -220,7 +221,7 @@ def run_experiment(_config: Configuration):
                 dim=1
             )
         plt.plot(chunk_test_data, label="Test", color="orange")
-        plt.plot(chunk_test_data + predicted, label="Predicted", color="blue", linestyle='--')
+        plt.plot(chunk_test_data.squeeze().tolist() + predicted, label="Predicted", color="blue", linestyle='--')
         plt.ylim((y_bottom, y_top))
         plt.xlabel("Time")
         plt.ylabel("Price (USD)")
@@ -240,11 +241,15 @@ if __name__ == "__main__":
     from multiprocessing import Pool
     import os
 
-    cpu_count = os.cpu_count()
-    with Pool(processes=cpu_count) as pool:
-        for _ in tqdm(pool.imap_unordered(run_experiment, my_configs), total=len(my_configs)):
-            pass
-    # run_experiment(my_configs[0])
+    # Unable to run this MP in Intel-based cpu on purism
+    # cpu_count = os.cpu_count()
+    # with Pool(processes=cpu_count) as pool:
+    #     for _ in tqdm(pool.imap_unordered(run_experiment, my_configs), total=len(my_configs)):
+    #         pass
+
+    # Enable these lines to run on purism
+    for my_config in tqdm(my_configs):
+        run_experiment(my_config)
 
 
 
